@@ -422,8 +422,44 @@ def apply_log_softmax_over_vocab(logits):
     # TODO: Convert decoder logits (B, T, V) into log probabilities over the vocabulary axis.
     return torch.log_softmax(logits,axis=-1)
 
-# Step 51 - run_transformer_forward (not yet solved)
-# TODO: implement
+# Step 51 - run_transformer_forward
+def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
+    # TODO: embed src+tgt, add PE, build masks, run encoder/decoder, project to log probs.
+    vocab_size,d_model=model_params['token_embedding'].shape
+    src_seq = src_ids.shape[-1] if hasattr(src_ids, 'shape') else len(src_ids[0])
+    tgt_seq = tgt_ids.shape[-1] if hasattr(tgt_ids, 'shape') else len(tgt_ids[0])
+    max_len=max(src_seq,tgt_seq)
+
+    src_list = src_ids.tolist() if hasattr(src_ids, 'tolist') else src_ids
+    tgt_list = tgt_ids.tolist() if hasattr(tgt_ids, 'tolist') else tgt_ids
+    src_padded = [pad_id_sequence(seq, src_seq, pad_id) for seq in src_list]
+    tgt_padded = [pad_id_sequence(seq, tgt_seq, pad_id) for seq in tgt_list]
+    src_ids=stack_padded_sequences_to_batch(src_padded)
+    tgt_ids=stack_padded_sequences_to_batch(tgt_padded)
+
+    src_emb = model_params['token_embedding'][src_ids]
+    tgt_emb = model_params['token_embedding'][tgt_ids]
+    src_emb=scale_embeddings_by_sqrt_d_model(src_emb,d_model)
+    tgt_emb=scale_embeddings_by_sqrt_d_model(tgt_emb,d_model)
+    enc=build_sinusoidal_positional_encoding(max_len,d_model)
+    src_x=add_positional_encoding_to_embeddings(src_emb,enc)
+    tgt_x=add_positional_encoding_to_embeddings(tgt_emb,enc)
+
+    src_pad_mask=build_padding_mask(src_ids,pad_id)
+    src_causal_mask=build_causal_mask(src_seq)
+    src_mask=combine_padding_and_causal_masks(src_pad_mask, src_causal_mask)
+    tgt_pad_mask=build_padding_mask(tgt_ids,pad_id)
+    tgt_causal_mask=build_causal_mask(tgt_seq)
+    tgt_mask=combine_padding_and_causal_masks(tgt_pad_mask, tgt_causal_mask)
+    hidden=src_x
+    for enc_layers in model_params['encoder_layers']:
+        hidden=stack_encoder_layers(hidden,enc_layers,num_heads,src_mask)
+    enc_out=hidden
+    hidden=tgt_x
+    for dec_layers in model_params['decoder_layers']:
+        hidden=stack_decoder_layers(hidden,enc_out,dec_layers,num_heads,src_mask,tgt_mask)
+    logits=apply_final_output_projection(hidden,model_params['output_projection'])
+    return apply_log_softmax_over_vocab(logits)
 
 # Step 52 - init_encoder_layer_parameters (not yet solved)
 # TODO: implement
