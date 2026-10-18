@@ -487,8 +487,30 @@ def init_encoder_layer_parameters(d_model, num_heads, d_ff):
     encoder_params['b2']=torch.zeros((d_model,),requires_grad=True)
     return encoder_params
 
-# Step 53 - init_decoder_layer_parameters (not yet solved)
-# TODO: implement
+# Step 53 - init_decoder_layer_parameters
+import torch
+
+def init_decoder_layer_parameters(d_model, num_heads, d_ff):
+    # TODO: return a dict of requires_grad tensors for one decoder layer
+    decoder_params={}
+    attn_weights=['w_q_self','w_k_self','w_v_self','w_o_self',
+    'w_q_cross','w_k_cross','w_v_cross','w_o_cross']
+    biases=['self_beta','cross_beta','ffn_beta']
+    gammas=['self_gamma','cross_gamma','ffn_gamma']
+    for weight in attn_weights:
+        decoder_params[weight]=torch.randn((d_model,d_model)).mul_(1/math.sqrt(d_model))
+        decoder_params[weight].requires_grad_(True)
+    for gamma in gammas:
+        decoder_params[gamma]=torch.ones((d_model,),requires_grad=True)
+    for bias in biases:
+        decoder_params[bias]=torch.zeros((d_model,),requires_grad=True)
+    decoder_params['w1']=torch.randn((d_model,d_ff)).mul_(1/math.sqrt(d_model))
+    decoder_params['w1'].requires_grad_(True)
+    decoder_params['b1']=torch.zeros((d_ff,),requires_grad=True)
+    decoder_params['w2']=torch.randn((d_ff,d_model)).mul_(1/math.sqrt(d_model))
+    decoder_params['w2'].requires_grad_(True)
+    decoder_params['b2']=torch.zeros((d_model,),requires_grad=True)
+    return decoder_params
 
 # Step 54 - init_embedding_and_projection_parameters (not yet solved)
 # TODO: implement
