@@ -785,8 +785,13 @@ def append_tokens_to_beam_sequences(beam_sequences, beam_indices, token_ids):
     new_beam=beam_sequences[beam_indices]
     return torch.cat((new_beam,token_ids.unsqueeze(1)),dim=1)
 
-# Step 79 - mark_finished_beams (not yet solved)
-# TODO: implement
+# Step 79 - mark_finished_beams
+import torch
+
+def mark_finished_beams(token_ids, finished_flags, end_token_id):
+    # TODO: return updated boolean finished flags for each beam given the new token ids
+    new_finish = (token_ids == end_token_id)
+    return new_finish|finished_flags
 
 # Step 80 - select_best_finished_beam (not yet solved)
 # TODO: implement
