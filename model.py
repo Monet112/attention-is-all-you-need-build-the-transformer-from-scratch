@@ -703,8 +703,11 @@ def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
     # TODO: shift targets right, run the forward pass, build smoothed targets, and average the KL loss over non-pad tokens.
     shifted=shift_targets_right_with_start_token(tgt_batch,config['start_id'])
     softmaxed_logits=run_transformer_forward(src_batch,shifted,model_params,int(config['num_heads']),int(config['pad_id']))
-    smoothing_dist=build_uniform_smoothing_distribution(tgt_batch.shape,config['vocab_size'],0.1)
-    smoothing_dist=set_confidence_on_gold_tokens(smoothing_dist,tgt_batch,0.9)
+    
+    target_shape = (tgt_batch.shape[0], tgt_batch.shape[1], config['vocab_size'])
+    smoothing_dist=build_uniform_smoothing_distribution(target_shape,config['vocab_size'],config['smoothing'])
+    smoothing_dist=set_confidence_on_gold_tokens(smoothing_dist,tgt_batch,1-config['smoothing'])
+    
     smoothing_dist=zero_pad_column_and_pad_token_rows(smoothing_dist,tgt_batch,config['pad_id'])
     smooth_loss=compute_label_smoothed_kl_loss(softmaxed_logits,smoothing_dist)
     return average_loss_over_non_pad_tokens(smooth_loss,tgt_batch,config['pad_id'])
