@@ -451,14 +451,10 @@ def run_transformer_forward(src_ids, tgt_ids, model_params, num_heads, pad_id):
     tgt_pad_mask=build_padding_mask(tgt_ids,pad_id)
     tgt_causal_mask=build_causal_mask(tgt_seq)
     tgt_mask=combine_padding_and_causal_masks(tgt_pad_mask, tgt_causal_mask)
-    hidden=src_x
-    for enc_layers in model_params['encoder_layers']:
-        hidden=stack_encoder_layers(hidden,enc_layers,num_heads,src_mask)
-    enc_out=hidden
-    hidden=tgt_x
-    for dec_layers in model_params['decoder_layers']:
-        hidden=stack_decoder_layers(hidden,enc_out,dec_layers,num_heads,src_mask,tgt_mask)
-    logits=apply_final_output_projection(hidden,model_params['output_projection'])
+    
+    enc_out = stack_encoder_layers(src_x, model_params['encoder_layers'], num_heads, src_mask)
+    dec_out = stack_decoder_layers(tgt_x, enc_out, model_params['decoder_layers'], num_heads, src_mask, tgt_mask)
+    logits=apply_final_output_projection(dec_out,model_params['output_projection'])
     return apply_log_softmax_over_vocab(logits)
 
 # Step 52 - init_encoder_layer_parameters
@@ -695,8 +691,23 @@ def zero_all_parameter_gradients(parameter_list):
     for param in parameter_list:
         param.grad=None
 
-# Step 71 - compute_batch_training_loss (not yet solved)
-# TODO: implement
+# Step 71 - compute_batch_training_loss
+def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
+    """One teacher-forced forward pass -> label-smoothed KL loss averaged over non-pad tokens.
+
+    model_params (read only; the same dict run_transformer_forward takes):
+      token_embedding, output_projection, encoder_layers, decoder_layers
+    config keys:
+      pad_id, start_id, vocab_size, smoothing, num_heads
+    """
+    # TODO: shift targets right, run the forward pass, build smoothed targets, and average the KL loss over non-pad tokens.
+    shifted=shift_targets_right_with_start_token(tgt_batch,config['start_id'])
+    softmaxed_logits=run_transformer_forward(src_batch,shifted,model_params,int(config['num_heads']),int(config['pad_id']))
+    smoothing_dist=build_uniform_smoothing_distribution(shape(tgt_batch),config['vocab_size'],0.1)
+    smoothing_dist=set_confidence_on_gold_tokens(smoothing_dist,tgt_batch,0.9)
+    smoothing_dist=zero_pad_column_and_pad_token_rows(smoothing_dist,tgt_batch,config['pad_id'])
+    smooth_loss=compute_label_smoothed_kl_loss(softmaxed_logits,smoothing_dist)
+    return average_loss_over_non_pad_tokens(smooth_loss,tgt_batch,config['pad_id'])
 
 # Step 72 - run_training_step_with_backprop (not yet solved)
 # TODO: implement
