@@ -578,7 +578,7 @@ import torch
 def set_confidence_on_gold_tokens(smoothed_distribution, gold_token_ids, confidence):
     """Place confidence mass at gold-token positions of a smoothed target distribution."""
     # TODO: write the confidence value at each gold token id along the vocab axis
-    unsqueezed=gold_token_ids.unsqueeze(-1)
+    unsqueezed=gold_token_ids.unsqueeze(-1).long()
     return torch.scatter(smoothed_distribution,dim=-1,index=unsqueezed,value=confidence)
 
 # Step 60 - zero_pad_column_and_pad_token_rows
@@ -703,7 +703,7 @@ def compute_batch_training_loss(src_batch, tgt_batch, model_params, config):
     # TODO: shift targets right, run the forward pass, build smoothed targets, and average the KL loss over non-pad tokens.
     shifted=shift_targets_right_with_start_token(tgt_batch,config['start_id'])
     softmaxed_logits=run_transformer_forward(src_batch,shifted,model_params,int(config['num_heads']),int(config['pad_id']))
-    smoothing_dist=build_uniform_smoothing_distribution(shape(tgt_batch),config['vocab_size'],0.1)
+    smoothing_dist=build_uniform_smoothing_distribution(tgt_batch.shape,config['vocab_size'],0.1)
     smoothing_dist=set_confidence_on_gold_tokens(smoothing_dist,tgt_batch,0.9)
     smoothing_dist=zero_pad_column_and_pad_token_rows(smoothing_dist,tgt_batch,config['pad_id'])
     smooth_loss=compute_label_smoothed_kl_loss(softmaxed_logits,smoothing_dist)
